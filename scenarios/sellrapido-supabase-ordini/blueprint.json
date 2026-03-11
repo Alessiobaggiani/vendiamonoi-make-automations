@@ -1,0 +1,112 @@
+{
+  "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API.",
+  "name": "SellRapido → Supabase | Ordini Marketplace",
+  "make_scenario_id": 8831616,
+  "scheduling": {
+    "type": "indefinitely",
+    "interval": 900
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "http:ActionSendData",
+      "description": "POST SellRapido — recupero ordini ultimi 2h",
+      "method": "POST",
+      "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
+      "body": "{\"startDate\": \"{{formatDate(addHours(now; -2); \\\"YYYY-MM-DD\\\")}}\"}"
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicFeeder",
+      "description": "Iterator su array orders",
+      "array": "{{1.data.orders}}"
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "description": "GET Supabase marketplace lookup per channel_code",
+      "method": "GET",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/marketplaces",
+      "querystring": {
+        "slug": "eq.{{lower(2.head.channel_code)}}",
+        "select": "id"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
+        "Accept": "application/vnd.pgrst.object+json"
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "description": "POST Supabase upsert ordine in orders",
+      "method": "POST",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/orders",
+      "querystring": {
+        "on_conflict": "marketplace_id,marketplace_order_id"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
+        "Prefer": "resolution=merge-duplicates,return=representation",
+        "Accept": "application/vnd.pgrst.object+json"
+      },
+      "body": {
+        "marketplace_id": "{{3.data.id}}",
+        "marketplace_order_id": "{{2.head.code}}",
+        "order_date": "{{ifempty(2.head.create_date; now)}}",
+        "customer_name": "{{2.head.buyer_name}}",
+        "customer_email": "{{2.head.buyer_email}}",
+        "shipping_address": {
+          "street": "{{2.head.buyer_address1}}",
+          "city": "{{2.head.buyer_city}}",
+          "zip": "{{2.head.buyer_zip}}",
+          "country": "{{2.head.buyer_country}}"
+        },
+        "order_value": "{{ifempty(2.head.price; 0)}}",
+        "marketplace_status": "pending",
+        "internal_status": "new"
+      }
+    },
+    {
+      "id": 7,
+      "module": "util:SetVariable2",
+      "description": "Salva orderId per uso in modulo 6",
+      "name": "orderId",
+      "scope": "roundtrip",
+      "value": "{{4.data.id}}"
+    },
+    {
+      "id": 5,
+      "module": "builtin:BasicFeeder",
+      "description": "Iterator su rows (righe prodotto dell'ordine)",
+      "array": "{{2.rows}}"
+    },
+    {
+      "id": 6,
+      "module": "http:ActionSendData",
+      "description": "POST Supabase upsert riga prodotto in order_items",
+      "method": "POST",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/order_items",
+      "querystring": {
+        "on_conflict": "order_id,product_sku"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
+        "Prefer": "resolution=merge-duplicates,return=representation"
+      },
+      "body": {
+        "order_id": "{{7.orderId}}",
+        "product_sku": "{{5.sku}}",
+        "product_name": "{{5.title}}",
+        "product_ean": "{{5.ean}}",
+        "quantity": "{{ifempty(5.quantity; 1)}}",
+        "sale_price": "{{ifempty(5.price; 0)}}",
+        "supplier_cost": "{{ifempty(5.price_cost; 0)}}",
+        "tracking_number": "{{5.tracking}}"
+      }
+    }
+  ]
+}
