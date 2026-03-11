@@ -1,0 +1,87 @@
+{
+  "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API.",
+  "name": "FIC → Supabase | Fatture & Note Credito Ricevute",
+  "make_scenario_id": 8833326,
+  "scheduling": {
+    "type": "daily",
+    "time": "06:00"
+  },
+  "flow": [
+    {
+      "id": 1,
+      "module": "fatture-in-cloud:listReceivedDocuments",
+      "description": "Recupera fatture passive da Fatture in Cloud",
+      "connection": "My Fatture in Cloud connection (direzione@vendiamonoi.it)",
+      "parameters": {
+        "companyId": 1303892,
+        "documentType": "expense",
+        "limit": 500
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "description": "GET Supabase supplier_aliases — lookup ILIKE sul nome fornitore FIC",
+      "method": "GET",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/supplier_aliases",
+      "querystring": {
+        "alias_name": "ilike.{{1.entity.name}}",
+        "is_active": "eq.true",
+        "select": "supplier_id"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]"
+      }
+    },
+    {
+      "id": 3,
+      "module": "http:ActionSendData",
+      "description": "POST upsert record base fattura (sempre — senza supplier_id)",
+      "method": "POST",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/supplier_invoices",
+      "querystring": {
+        "on_conflict": "fatture_in_cloud_id"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      "body": {
+        "fatture_in_cloud_id": "{{toString(1.id)}}",
+        "raw_supplier_name": "{{1.entity.name}}",
+        "invoice_number": "{{ifempty(1.invoice_number; \"\")}}",
+        "invoice_date": "{{formatDate(parseDate(1.date; \"D/M/YYYY\"); \"YYYY-MM-DD\")}}",
+        "total_amount": "{{ifempty(1.amount_gross; 0)}}",
+        "vat_amount": "{{ifempty(1.amount_vat; 0)}}",
+        "currency": "{{ifempty(1.currency.id; \"EUR\")}}",
+        "payment_status": "{{if(first(1.payments_list).status = \"paid\"; \"paid\"; \"unpaid\")}}",
+        "invoice_type": "{{if(1.type = \"expense\"; \"invoice\"; \"credit_note\")}}",
+        "document_url": "{{ifempty(1.attachment_url; \"\")}}",
+        "notes": "{{ifempty(1.description; \"\")}}"
+      }
+    },
+    {
+      "id": 4,
+      "module": "http:ActionSendData",
+      "description": "POST upsert supplier_id + matched (solo se alias trovato — filtro: length(2.data) > 0)",
+      "filter": "{{length(2.data)}} > 0",
+      "method": "POST",
+      "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/supplier_invoices",
+      "querystring": {
+        "on_conflict": "fatture_in_cloud_id"
+      },
+      "headers": {
+        "apikey": "[SUPABASE_ANON_KEY]",
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      "body": {
+        "fatture_in_cloud_id": "{{toString(1.id)}}",
+        "supplier_id": "{{first(2.data).supplier_id}}",
+        "matching_status": "matched"
+      }
+    }
+  ]
+}
