@@ -1,5 +1,11 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## [v1.6] - 12/03/2026
+- **Rimosso filtro status dalla chiamata API SellRapido**: il modulo 1 ora chiama l'API senza filtrare per status, recuperando TUTTI gli ordini degli ultimi 30 giorni. Root cause: eBay Italy, eBay Germany e Metro Germany non comparivano perché i loro ordini potrebbero avere stati diversi dai 4 filtrati in precedenza (`standby/accepted/sent/cancelled`).
+- **Mapping status esteso — italiano + inglese**: modulo 4 ora gestisce 11 casi. Aggiunti: `accettato→confirmed`, `spedito→shipped`, `delivered→delivered`, `consegnato→delivered`, `annullato→cancelled`, `refunded→refunded`, `rimborsato→refunded`. Il frontend SellRapido mostra stati in italiano; l'API potrebbe restituire entrambe le versioni a seconda del marketplace.
+- **Eliminata tabella diagnostica** `sellrapido_channel_codes_log` da Supabase.
+- **Disattivato scenario diagnostico** 8845166.
+
 ## [v1.5] - 12/03/2026
 - **Fix case-insensitive marketplace lookup**: modulo 3 ora usa `eq.{{lower(2.head.channel_code)}}` invece di `eq.{{2.head.channel_code}}`. Root cause: SellRapido invia i channel_code in PascalCase/UPPERCASE (`CarrefourES`, `ePRICEIT`, `IT_MAIN`, `LeroyMerlinIT`, `RueduCommerce`, `Shopify`, `Kaufland Germany`), ma Supabase `sellrapido_code` ha tutti i valori in lowercase. Con `eq.` exact match, solo `mediaworld.it` matchava per coincidenza. Con `lower()` tutti i 10 canali attivi ora matchano.
 - **Fix Supabase `eprice_it` → `epriceit`**: `lower('ePRICEIT') = 'epriceit'`, ma il DB aveva `eprice_it` con underscore — rinominato.
