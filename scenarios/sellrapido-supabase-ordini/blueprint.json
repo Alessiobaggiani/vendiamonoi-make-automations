@@ -1,5 +1,5 @@
 {
-  "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API.",
+  "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API. La API key SellRapido è sostituita con [SELLRAPIDO_API_KEY].",
   "name": "SellRapido → Supabase | Ordini Marketplace",
   "make_scenario_id": 8831616,
   "scheduling": {
@@ -13,7 +13,9 @@
       "description": "POST SellRapido — recupero ordini ultimi 2h",
       "method": "POST",
       "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
-      "body": "{\"startDate\": \"{{formatDate(addHours(now; -2); \\\"YYYY-MM-DD\\\")}}\"}"
+      "bodyType": "raw",
+      "contentType": "application/json",
+      "body": "{\"startDate\": \"{{formatDate(addHours(now; -2); \"YYYY-MM-DD\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"shipped\", \"delivered\"]}"
     },
     {
       "id": 2,
@@ -24,7 +26,7 @@
     {
       "id": 3,
       "module": "http:ActionSendData",
-      "description": "GET Supabase marketplace lookup per channel_code",
+      "description": "GET Supabase marketplaces — lookup per channel_code (restituisce array)",
       "method": "GET",
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/marketplaces",
       "querystring": {
@@ -33,18 +35,20 @@
       },
       "headers": {
         "apikey": "[SUPABASE_ANON_KEY]",
-        "Authorization": "Bearer [SUPABASE_ANON_KEY]",
-        "Accept": "application/vnd.pgrst.object+json"
-      }
+        "Authorization": "Bearer [SUPABASE_ANON_KEY]"
+      },
+      "_note": "Restituisce array. Nessun header Accept:vnd.pgrst.object per evitare 406 quando marketplace non trovato."
     },
     {
       "id": 4,
       "module": "http:ActionSendData",
-      "description": "POST Supabase upsert ordine in orders",
+      "description": "POST upsert ordine in orders (solo se marketplace trovato)",
+      "filter": "{{length(3.data)}} > 0",
       "method": "POST",
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/orders",
       "querystring": {
-        "on_conflict": "marketplace_id,marketplace_order_id"
+        "on_conflict": "marketplace_id,marketplace_order_id",
+        "columns": "marketplace_id,marketplace_order_id,order_date,customer_name,customer_email,shipping_address,order_value,shipping_value,marketplace_fee,marketplace_status,raw_data"
       },
       "headers": {
         "apikey": "[SUPABASE_ANON_KEY]",
@@ -53,9 +57,9 @@
         "Accept": "application/vnd.pgrst.object+json"
       },
       "body": {
-        "marketplace_id": "{{3.data.id}}",
+        "marketplace_id": "{{first(3.data).id}}",
         "marketplace_order_id": "{{2.head.code}}",
-        "order_date": "{{ifempty(2.head.create_date; now)}}",
+        "order_date": "{{ifempty(2.head.date_order; now)}}",
         "customer_name": "{{2.head.buyer_name}}",
         "customer_email": "{{2.head.buyer_email}}",
         "shipping_address": {
@@ -65,8 +69,17 @@
           "country": "{{2.head.buyer_country}}"
         },
         "order_value": "{{ifempty(2.head.price; 0)}}",
-        "marketplace_status": "pending",
-        "internal_status": "new"
+        "shipping_value": "{{ifempty(2.head.shipping_price; 0)}}",
+        "marketplace_fee": "{{ifempty(2.head.marketplace_fee; 0)}}",
+        "marketplace_status": "{{if(2.head.status = \"standby\"; \"pending\"; if(2.head.status = \"accepted\"; \"confirmed\"; if(2.head.status = \"shipped\"; \"shipped\"; if(2.head.status = \"delivered\"; \"delivered\"; \"pending\"))))}}",
+        "raw_data": "{{toJSON(2.head)}}"
+      },
+      "_mapping_note": {
+        "order_date": "usa date_order (data ordine cliente) — NON create_date (data inserimento SellRapido)",
+        "shipping_value": "shipping_price dal campo head — costo spedizione addebitato al cliente",
+        "marketplace_status": "mapping standby→pending, accepted→confirmed, shipped→shipped, delivered→delivered",
+        "raw_data": "JSON completo del campo head per tracciabilità",
+        "internal_status": "non incluso nel body — usa default DB 'new'; protetto dalla colonna columns per non sovrascrivere su update"
       }
     },
     {

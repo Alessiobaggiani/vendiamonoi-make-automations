@@ -20,7 +20,7 @@ Repository di documentazione degli scenari Make di Vendiamonoi.it S.R.L.
 
 | Scenario | Descrizione breve | ID Make | Cartella | Stato | Ultima modifica |
 |----------|-------------------|---------|----------|-------|-----------------|
-| SellRapido → Supabase \| Ordini Marketplace | Sincronizza ordini da SellRapido in Supabase ogni 15 min | 8831616 | `sellrapido-supabase-ordini` | ✅ Attivo | 10/03/2026 |
+| SellRapido → Supabase \| Ordini Marketplace | Sincronizza ordini da SellRapido in Supabase ogni 15 min | 8831616 | `sellrapido-supabase-ordini` | ✅ Attivo | 12/03/2026 |
 | FIC → Supabase \| Fatture & Note Credito Ricevute | Importa fatture passive da Fatture in Cloud in Supabase ogni mattina | 8833326 | `fic-supabase-fatture` | ✅ Attivo | 10/03/2026 |
 
 ---
