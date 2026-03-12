@@ -1,5 +1,12 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## [v1.2] - 12/03/2026
+- Fix critico: `startDate` cambiato da `addHours(now; -2)` a `addDays(now; -30)` — la finestra di 2h impediva aggiornamenti di stato su ordini esistenti; ora tutti gli ordini degli ultimi 30 giorni vengono ri-processati ad ogni esecuzione
+- Migliorata fallback `order_date`: ora usa `ifempty(date_order; ifempty(create_date; now))` — se `date_order` è null, tenta `create_date` prima di usare `now()`
+- Rimosso `raw_data` dall'upsert: la funzione `toJSON()` di Make IML non è disponibile nel contesto raw body string — campo rimosso per evitare errore `DataError: Function 'toJSON' not found`
+- Rimosso `raw_data` anche dal parametro `columns`
+- Verificato: scenario esegue 95 operazioni su ~30 ordini, status 1 (SUCCESS)
+
 ## [v1.1] - 12/03/2026
 - Fix `order_date`: ora usa `date_order` (data reale ordine cliente) invece di `create_date` (data inserimento SellRapido)
 - Fix `marketplace_status`: era hardcoded `"pending"`, ora mappato dinamicamente da SellRapido (`standby→pending`, `accepted→confirmed`, `shipped→shipped`, `delivered→delivered`)

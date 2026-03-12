@@ -10,12 +10,13 @@
     {
       "id": 1,
       "module": "http:ActionSendData",
-      "description": "POST SellRapido — recupero ordini ultimi 2h",
+      "description": "POST SellRapido — recupero ordini ultimi 30 giorni",
       "method": "POST",
       "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
       "bodyType": "raw",
       "contentType": "application/json",
-      "body": "{\"startDate\": \"{{formatDate(addHours(now; -2); \"YYYY-MM-DD\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"shipped\", \"delivered\"]}"
+      "body": "{\"startDate\": \"{{formatDate(addDays(now; -30); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"shipped\", \"delivered\"]}",
+      "_note": "Finestra 30 giorni: garantisce aggiornamento status su ordini esistenti. La finestra -2h originale impediva il tracking degli status change."
     },
     {
       "id": 2,
@@ -37,7 +38,7 @@
         "apikey": "[SUPABASE_ANON_KEY]",
         "Authorization": "Bearer [SUPABASE_ANON_KEY]"
       },
-      "_note": "Restituisce array. Nessun header Accept:vnd.pgrst.object per evitare 406 quando marketplace non trovato."
+      "_note": "Nessun header Accept:vnd.pgrst.object per evitare 406 quando marketplace non trovato. Restituisce array."
     },
     {
       "id": 4,
@@ -48,7 +49,7 @@
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/orders",
       "querystring": {
         "on_conflict": "marketplace_id,marketplace_order_id",
-        "columns": "marketplace_id,marketplace_order_id,order_date,customer_name,customer_email,shipping_address,order_value,shipping_value,marketplace_fee,marketplace_status,raw_data"
+        "columns": "marketplace_id,marketplace_order_id,order_date,customer_name,customer_email,shipping_address,order_value,shipping_value,marketplace_fee,marketplace_status"
       },
       "headers": {
         "apikey": "[SUPABASE_ANON_KEY]",
@@ -59,7 +60,7 @@
       "body": {
         "marketplace_id": "{{first(3.data).id}}",
         "marketplace_order_id": "{{2.head.code}}",
-        "order_date": "{{ifempty(2.head.date_order; now)}}",
+        "order_date": "{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}",
         "customer_name": "{{2.head.buyer_name}}",
         "customer_email": "{{2.head.buyer_email}}",
         "shipping_address": {
@@ -71,15 +72,14 @@
         "order_value": "{{ifempty(2.head.price; 0)}}",
         "shipping_value": "{{ifempty(2.head.shipping_price; 0)}}",
         "marketplace_fee": "{{ifempty(2.head.marketplace_fee; 0)}}",
-        "marketplace_status": "{{if(2.head.status = \"standby\"; \"pending\"; if(2.head.status = \"accepted\"; \"confirmed\"; if(2.head.status = \"shipped\"; \"shipped\"; if(2.head.status = \"delivered\"; \"delivered\"; \"pending\"))))}}",
-        "raw_data": "{{toJSON(2.head)}}"
+        "marketplace_status": "{{if(2.head.status = \"standby\"; \"pending\"; if(2.head.status = \"accepted\"; \"confirmed\"; if(2.head.status = \"shipped\"; \"shipped\"; if(2.head.status = \"delivered\"; \"delivered\"; \"pending\"))))}}"
       },
       "_mapping_note": {
-        "order_date": "usa date_order (data ordine cliente) — NON create_date (data inserimento SellRapido)",
-        "shipping_value": "shipping_price dal campo head — costo spedizione addebitato al cliente",
+        "order_date": "usa date_order (data ordine cliente), fallback create_date, fallback now()",
+        "shipping_value": "shipping_price dal campo head — costo spedizione",
         "marketplace_status": "mapping standby→pending, accepted→confirmed, shipped→shipped, delivered→delivered",
-        "raw_data": "JSON completo del campo head per tracciabilità",
-        "internal_status": "non incluso nel body — usa default DB 'new'; protetto dalla colonna columns per non sovrascrivere su update"
+        "internal_status": "non incluso nel body — usa default DB 'new'; protetto dalla colonna columns per non sovrascrivere su update",
+        "raw_data": "RIMOSSO: toJSON() non disponibile in Make IML raw body context"
       }
     },
     {
