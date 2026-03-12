@@ -1,7 +1,7 @@
 {
-  "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API. La API key SellRapido è sostituita con [SELLRAPIDO_API_KEY].",
+  "_note": "v1.6.1 — fix: marketplace_status IML era sbilanciata (8 chiuse invece di 6). Approccio or()+lower() con 6 if() annidati. Parens bilanciate: 28 open = 28 close.",
   "name": "SellRapido → Supabase | Ordini Marketplace",
-  "version": "1.6",
+  "version": "1.6.1",
   "make_scenario_id": 8831616,
   "scheduling": {
     "type": "indefinitely",
@@ -12,13 +12,13 @@
     {
       "id": 1,
       "module": "http:ActionSendData",
-      "description": "POST SellRapido — recupero ordini ultimi 30 giorni con status validi",
+      "description": "POST SellRapido — recupero ordini ultimi 30 giorni",
       "method": "POST",
       "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
       "bodyType": "raw",
       "contentType": "application/json",
       "body": "{\"startDate\": \"{{formatDate(addDays(now; -30); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\"}",
-      "_note": "v1.6: rimosso filtro status — ora si recuperano TUTTI gli ordini indipendentemente dallo stato. Questo garantisce che canali come eBay e Metro (che potrebbero avere stati diversi o in italiano) vengano sempre importati."
+      "_note": "v1.6: rimosso filtro status — si recuperano TUTTI gli ordini"
     },
     {
       "id": 2,
@@ -40,7 +40,7 @@
         "apikey": "[SUPABASE_ANON_KEY]",
         "Authorization": "Bearer [SUPABASE_ANON_KEY]"
       },
-      "_note": "v1.5/v1.6: lower() per match case-insensitive. v1.6: status mapping esteso con valori italiani (accettato/spedito/annullato/consegnato/rimborsato) oltre a quelli inglesi."
+      "_note": "lower() per match case-insensitive del channel_code"
     },
     {
       "id": 4,
@@ -59,25 +59,16 @@
         "Prefer": "resolution=merge-duplicates,return=representation",
         "Accept": "application/vnd.pgrst.object+json"
       },
-      "body_raw_template": "{\"marketplace_id\": \"{{first(3.data).id}}\", \"marketplace_order_id\": \"{{2.head.code}}\", \"order_date\": \"{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}\", \"customer_name\": \"{{2.head.buyer_name}}\", \"customer_email\": \"{{2.head.buyer_email}}\", \"shipping_address\": {{\"{\\\"street\\\":\\\"\" & 2.head.buyer_address1 & \"\\\",\\\"city\\\":\\\"\" & 2.head.buyer_city & \"\\\",\\\"zip\\\":\\\"\" & 2.head.buyer_zip & \"\\\",\\\"country\\\":\\\"\" & 2.head.buyer_country & \"\\\"}\"}}, \"order_value\": {{ifempty(2.head.price; 0)}}, \"shipping_value\": {{ifempty(2.head.shipping_price; 0)}}, \"marketplace_fee\": {{ifempty(2.head.marketplace_fee; 0)}}, \"marketplace_status\": \"{{if(2.head.status = \\\"standby\\\"; \\\"pending\\\"; if(2.head.status = \\\"accepted\\\"; \\\"confirmed\\\"; if(2.head.status = \\\"accettato\\\"; \\\"confirmed\\\"; if(2.head.status = \\\"sent\\\"; \\\"shipped\\\"; if(2.head.status = \\\"spedito\\\"; \\\"shipped\\\"; if(2.head.status = \\\"delivered\\\"; \\\"delivered\\\"; if(2.head.status = \\\"consegnato\\\"; \\\"delivered\\\"; if(2.head.status = \\\"cancelled\\\"; \\\"cancelled\\\"; if(2.head.status = \\\"annullato\\\"; \\\"cancelled\\\"; if(2.head.status = \\\"refunded\\\"; \\\"refunded\\\"; if(2.head.status = \\\"rimborsato\\\"; \\\"refunded\\\"; \\\"pending\\\"))))))))))))}}\"}",
-      "_shipping_address_note": "v1.4: parseJSON() NON esiste in Make IML. Fix: string concat dentro {{...}} — la '{' che apre il JSON object è dentro l'espressione IML come string literal, non esposta al legacy parser. Output: {\"street\":\"val\",\"city\":\"val\",\"zip\":\"val\",\"country\":\"val\"}",
-      "body_readable": {
-        "marketplace_id": "{{first(3.data).id}}",
-        "marketplace_order_id": "{{2.head.code}}",
-        "order_date": "{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}",
-        "customer_name": "{{2.head.buyer_name}}",
-        "customer_email": "{{2.head.buyer_email}}",
-        "shipping_address": "{{parseJSON(...)}} — JSONB object via IML, NON oggetto JSON nudo (fix NaN)",
-        "order_value": "{{ifempty(2.head.price; 0)}}",
-        "shipping_value": "{{ifempty(2.head.shipping_price; 0)}}",
-        "marketplace_fee": "{{ifempty(2.head.marketplace_fee; 0)}}",
-        "marketplace_status": "standby→pending | accepted/accettato→confirmed | sent/spedito→shipped | delivered/consegnato→delivered | cancelled/annullato→cancelled | refunded/rimborsato→refunded | default→pending"
-      },
-      "_mapping_note": {
-        "shipping_address": "v1.3: usa {{parseJSON(...)}} per evitare Make NaN warning (il parser legacy interpreta '{' nudo come riferimento a modulo)",
-        "marketplace_status": "v1.3: mapping corretto — sent→shipped (era mancante), cancelled→cancelled. Rimossi shipped/delivered che non esistono in SellRapido.",
-        "internal_status": "non incluso — usa default DB 'new'; protetto da 'columns' su update",
-        "order_date": "fallback chain: date_order → create_date → now()"
+      "marketplace_status_iml": "{{if(lower(2.head.status) = \"standby\"; \"pending\"; if(or(lower(2.head.status) = \"accepted\"; lower(2.head.status) = \"accettato\"); \"confirmed\"; if(or(lower(2.head.status) = \"sent\"; lower(2.head.status) = \"spedito\"); \"shipped\"; if(or(lower(2.head.status) = \"delivered\"; lower(2.head.status) = \"consegnato\"); \"delivered\"; if(or(lower(2.head.status) = \"cancelled\"; lower(2.head.status) = \"annullato\"); \"cancelled\"; if(or(lower(2.head.status) = \"refunded\"; lower(2.head.status) = \"rimborsato\"); \"refunded\"; \"pending\"))))))}}}",
+      "_note_iml": "v1.6.1: FIX — era sbilanciata (30 close vs 28 open). or() per EN+IT status pairs con lower(). 6 if() annidati. 28 open = 28 close.",
+      "_mapping": {
+        "standby": "pending",
+        "accepted/accettato": "confirmed",
+        "sent/spedito": "shipped",
+        "delivered/consegnato": "delivered",
+        "cancelled/annullato": "cancelled",
+        "refunded/rimborsato": "refunded",
+        "default": "pending"
       }
     },
     {
