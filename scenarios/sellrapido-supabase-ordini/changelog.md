@@ -1,7 +1,12 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## [v1.4] - 12/03/2026
+- **Fix definitivo shipping_address**: `parseJSON()` non esiste in Make IML — lo scenario crashava con `DataError: Function 'parseJSON' not found`. Fix: `shipping_address` ora costruita via string concat dentro `{{...}}` — es. `{{"{\"street\":\"" & addr & "\",...}"}}`. La `{` che apre l'oggetto JSON è DENTRO l'espressione IML come stringa letterale, non esposta al parser legacy. Verificato: `shipping_address` è ora JSONB valido in Supabase, `shipping_address_formatted` generata correttamente. Scenario esegue 426 operazioni — SUCCESS.
+
 ## [v1.3] - 12/03/2026
-- **Fix critico NaN warning**: `shipping_address` nel body del modulo 4 era un oggetto JSON nudo con `{` come primo carattere — il parser legacy di Make (Integromat) interpretava `{` come riferimento a modulo, producendo "Module references non-existing module 'NaN'". Fix: campo ora generato via `{{parseJSON(...)}}` in IML, mai un `{` nudo nel template raw body.
+- **Fix NaN warning (parziale)**: `shipping_address` tentato con `{{parseJSON(...)}}` — non funzionava (funzione inesistente in Make). Superato da v1.4.
+- **Fix status ordini sempre "pending"**: il mapping dello status SellRapido era errato — controllava `shipped` e `delivered` che non esistono nell'API SellRapido. Il valore reale `sent` cadeva sempre nel default `"pending"`. Fix: mapping corretto `sent→shipped`, `cancelled→cancelled`. Modulo 1 aggiornato: status richiesti ora `[standby, accepted, sent, cancelled]`.
+- **Fix marketplace lookup**: modulo 3 ora usa colonna `sellrapido_code` (dedicata) invece di `slug=lower(channel_code)`.
 - **Fix status ordini sempre "pending"**: il mapping dello status SellRapido era errato — controllava `shipped` e `delivered` che non esistono nell'API SellRapido. Il valore reale `sent` cadeva sempre nel default `"pending"`. Fix: mapping corretto `sent→shipped`, `cancelled→cancelled`. Modulo 1 aggiornato: status richiesti ora `[standby, accepted, sent, cancelled]`.
 - **Fix marketplace lookup**: modulo 3 ora usa colonna `sellrapido_code` (dedicata) invece di `slug=lower(channel_code)`. Prerequisito: popolare `marketplaces.sellrapido_code` con i codici canale SellRapido.
 
