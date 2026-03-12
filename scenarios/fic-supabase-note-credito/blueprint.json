@@ -3,10 +3,10 @@
     {
       "id": 1,
       "mapper": {
+        "q": "date:>=:{{formatDate(addMonths(now; -18); \"YYYY-MM-DD\")}}",
         "limit": "1000",
         "companyId": 1303892,
-        "documentType": "expense",
-        "q": "date:>=:{{formatDate(addMonths(now; -18); \"YYYY-MM-DD\")}}"
+        "documentType": "passive_credit_note"
       },
       "module": "fatture-in-cloud:listReceivedDocuments",
       "version": 1,
@@ -14,7 +14,7 @@
         "restore": {
           "expect": {
             "companyId": {"mode": "chose", "label": "Vendiamonoi.it"},
-            "documentType": {"mode": "chose", "label": "Expense"}
+            "documentType": {"mode": "chose", "label": "Passive Credit Note"}
           },
           "parameters": {
             "__IMTCONN__": {
@@ -68,7 +68,7 @@
         "ca": "",
         "qs": [{"name": "on_conflict", "value": "fatture_in_cloud_id"}],
         "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/supplier_invoices",
-        "data": "{\"fatture_in_cloud_id\":\"{{toString(1.id)}}\",\"raw_supplier_name\":\"{{1.entity.name}}\",\"invoice_number\":\"{{ifempty(1.invoice_number; \"\")}}\",\"invoice_date\":\"{{formatDate(parseDate(1.date; \"D/M/YYYY\"); \"YYYY-MM-DD\")}}\",\"total_amount\":{{ifempty(1.amount_gross; 0)}},\"vat_amount\":{{ifempty(1.amount_vat; 0)}},\"currency\":\"{{ifempty(1.currency.id; \"EUR\")}}\",\"payment_status\":\"{{if(ifempty(first(1.payments_list).status; \"\") = \"paid\"; \"paid\"; \"unpaid\")}}\",\"invoice_type\":\"{{if(1.type = \"expense\"; \"invoice\"; \"credit_note\")}}\",\"document_url\":\"{{ifempty(1.attachment_url; \"\")}}\",\"notes\":\"{{ifempty(1.description; \"\")}}\"}",
+        "data": "{\"fatture_in_cloud_id\":\"{{toString(1.id)}}\",\"raw_supplier_name\":\"{{1.entity.name}}\",\"invoice_number\":\"{{ifempty(1.invoice_number; \"\")}}\",\"invoice_date\":\"{{formatDate(parseDate(1.date; \"D/M/YYYY\"); \"YYYY-MM-DD\")}}\",\"total_amount\":{{ifempty(1.amount_gross; 0)}},\"vat_amount\":{{ifempty(1.amount_vat; 0)}},\"currency\":\"{{ifempty(1.currency.id; \"EUR\")}}\",\"payment_status\":\"{{if(ifempty(first(1.payments_list).status; \"\") = \"paid\"; \"paid\"; \"unpaid\")}}\",\"invoice_type\":\"credit_note\",\"document_url\":\"{{ifempty(1.attachment_url; \"\")}}\",\"notes\":\"{{ifempty(1.description; \"\")}}\"}",
         "gzip": false,
         "method": "post",
         "headers": [
@@ -133,7 +133,7 @@
       "parameters": {"handleErrors": false, "useNewZLibDeCompress": true}
     }
   ],
-  "name": "FIC → Supabase | Fatture & Note Credito Ricevute",
+  "name": "FIC → Supabase | Note di Credito Ricevute",
   "metadata": {
     "instant": false,
     "version": 1,
@@ -149,5 +149,6 @@
       "freshVariables": false,
       "autoCommitTriggerLast": true
     }
-  }
+  },
+  "scheduling": {"time": "06:10", "type": "daily"}
 }
