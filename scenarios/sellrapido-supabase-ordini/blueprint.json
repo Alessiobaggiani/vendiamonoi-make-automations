@@ -1,6 +1,7 @@
 {
   "_note": "Le API key Supabase (apikey/Authorization) sono state sostituite con [SUPABASE_ANON_KEY]. Recuperare la chiave reale dal pannello Supabase > Settings > API. La API key SellRapido è sostituita con [SELLRAPIDO_API_KEY].",
   "name": "SellRapido → Supabase | Ordini Marketplace",
+  "version": "1.5",
   "make_scenario_id": 8831616,
   "scheduling": {
     "type": "indefinitely",
@@ -32,14 +33,14 @@
       "method": "GET",
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/marketplaces",
       "querystring": {
-        "sellrapido_code": "eq.{{2.head.channel_code}}",
+        "sellrapido_code": "eq.{{lower(2.head.channel_code)}}",
         "select": "id"
       },
       "headers": {
         "apikey": "[SUPABASE_ANON_KEY]",
         "Authorization": "Bearer [SUPABASE_ANON_KEY]"
       },
-      "_note": "v1.3: lookup ora usa colonna sellrapido_code (dedicata) invece di slug. PREREQUISITO: popolare marketplaces.sellrapido_code con i codici canale SellRapido."
+      "_note": "v1.5: lower() per match case-insensitive — SellRapido invia PascalCase/UPPERCASE (es. CarrefourES, ePRICEIT), Supabase ha tutto lowercase. Fix: lower() normalizza prima del confronto."
     },
     {
       "id": 4,

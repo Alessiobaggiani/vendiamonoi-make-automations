@@ -1,5 +1,12 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## [v1.5] - 12/03/2026
+- **Fix case-insensitive marketplace lookup**: modulo 3 ora usa `eq.{{lower(2.head.channel_code)}}` invece di `eq.{{2.head.channel_code}}`. Root cause: SellRapido invia i channel_code in PascalCase/UPPERCASE (`CarrefourES`, `ePRICEIT`, `IT_MAIN`, `LeroyMerlinIT`, `RueduCommerce`, `Shopify`, `Kaufland Germany`), ma Supabase `sellrapido_code` ha tutti i valori in lowercase. Con `eq.` exact match, solo `mediaworld.it` matchava per coincidenza. Con `lower()` tutti i 10 canali attivi ora matchano.
+- **Fix Supabase `eprice_it` → `epriceit`**: `lower('ePRICEIT') = 'epriceit'`, ma il DB aveva `eprice_it` con underscore — rinominato.
+- **Aggiunto marketplace IBS** (`sellrapido_code = 'ibs'`): IBS.it è un marketplace italiano per libri, presente tra gli ordini SellRapido.
+- **Aggiunto marketplace Italy (SellRapido)** (`sellrapido_code = 'italy'`): canale generico SellRapido non ancora classificato — aggiunto per non perdere ordini, da rinominare quando identificato.
+- **Diagnostico completato e risolto**: tabella `sellrapido_channel_codes_log` (creata in sessione precedente) ha confermato il problema — 9/10 channel_codes non matchavano. Può essere eliminata.
+
 ## [v1.4] - 12/03/2026
 - **Fix definitivo shipping_address**: `parseJSON()` non esiste in Make IML — lo scenario crashava con `DataError: Function 'parseJSON' not found`. Fix: `shipping_address` ora costruita via string concat dentro `{{...}}` — es. `{{"{\"street\":\"" & addr & "\",...}"}}`. La `{` che apre l'oggetto JSON è DENTRO l'espressione IML come stringa letterale, non esposta al parser legacy. Verificato: `shipping_address` è ora JSONB valido in Supabase, `shipping_address_formatted` generata correttamente. Scenario esegue 426 operazioni — SUCCESS.
 
