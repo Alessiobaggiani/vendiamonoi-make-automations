@@ -1,5 +1,10 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## [v1.3] - 12/03/2026
+- **Fix critico NaN warning**: `shipping_address` nel body del modulo 4 era un oggetto JSON nudo con `{` come primo carattere — il parser legacy di Make (Integromat) interpretava `{` come riferimento a modulo, producendo "Module references non-existing module 'NaN'". Fix: campo ora generato via `{{parseJSON(...)}}` in IML, mai un `{` nudo nel template raw body.
+- **Fix status ordini sempre "pending"**: il mapping dello status SellRapido era errato — controllava `shipped` e `delivered` che non esistono nell'API SellRapido. Il valore reale `sent` cadeva sempre nel default `"pending"`. Fix: mapping corretto `sent→shipped`, `cancelled→cancelled`. Modulo 1 aggiornato: status richiesti ora `[standby, accepted, sent, cancelled]`.
+- **Fix marketplace lookup**: modulo 3 ora usa colonna `sellrapido_code` (dedicata) invece di `slug=lower(channel_code)`. Prerequisito: popolare `marketplaces.sellrapido_code` con i codici canale SellRapido.
+
 ## [v1.2] - 12/03/2026
 - Fix critico: `startDate` cambiato da `addHours(now; -2)` a `addDays(now; -30)` — la finestra di 2h impediva aggiornamenti di stato su ordini esistenti; ora tutti gli ordini degli ultimi 30 giorni vengono ri-processati ad ogni esecuzione
 - Migliorata fallback `order_date`: ora usa `ifempty(date_order; ifempty(create_date; now))` — se `date_order` è null, tenta `create_date` prima di usare `now()`

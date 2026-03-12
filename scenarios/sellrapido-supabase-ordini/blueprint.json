@@ -4,19 +4,20 @@
   "make_scenario_id": 8831616,
   "scheduling": {
     "type": "indefinitely",
-    "interval": 900
+    "interval": 900,
+    "_note": "Ogni 15 minuti"
   },
   "flow": [
     {
       "id": 1,
       "module": "http:ActionSendData",
-      "description": "POST SellRapido — recupero ordini ultimi 30 giorni",
+      "description": "POST SellRapido — recupero ordini ultimi 30 giorni con status validi",
       "method": "POST",
       "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
       "bodyType": "raw",
       "contentType": "application/json",
-      "body": "{\"startDate\": \"{{formatDate(addDays(now; -30); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"shipped\", \"delivered\"]}",
-      "_note": "Finestra 30 giorni: garantisce aggiornamento status su ordini esistenti. La finestra -2h originale impediva il tracking degli status change."
+      "body": "{\"startDate\": \"{{formatDate(addDays(now; -30); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"sent\", \"cancelled\"]}",
+      "_note": "v1.3: status corretti per SellRapido API — i valori reali sono standby/accepted/sent/cancelled. 'shipped'/'delivered' NON esistono nell'API SellRapido."
     },
     {
       "id": 2,
@@ -27,24 +28,24 @@
     {
       "id": 3,
       "module": "http:ActionSendData",
-      "description": "GET Supabase marketplaces — lookup per channel_code (restituisce array)",
+      "description": "GET Supabase marketplaces — lookup per sellrapido_code (colonna dedicata)",
       "method": "GET",
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/marketplaces",
       "querystring": {
-        "slug": "eq.{{lower(2.head.channel_code)}}",
+        "sellrapido_code": "eq.{{2.head.channel_code}}",
         "select": "id"
       },
       "headers": {
         "apikey": "[SUPABASE_ANON_KEY]",
         "Authorization": "Bearer [SUPABASE_ANON_KEY]"
       },
-      "_note": "Nessun header Accept:vnd.pgrst.object per evitare 406 quando marketplace non trovato. Restituisce array."
+      "_note": "v1.3: lookup ora usa colonna sellrapido_code (dedicata) invece di slug. PREREQUISITO: popolare marketplaces.sellrapido_code con i codici canale SellRapido."
     },
     {
       "id": 4,
       "module": "http:ActionSendData",
       "description": "POST upsert ordine in orders (solo se marketplace trovato)",
-      "filter": "{{length(3.data)}} > 0",
+      "filter": "Marketplace trovato: {{length(3.data)}} > 0",
       "method": "POST",
       "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/orders",
       "querystring": {
@@ -57,29 +58,24 @@
         "Prefer": "resolution=merge-duplicates,return=representation",
         "Accept": "application/vnd.pgrst.object+json"
       },
-      "body": {
+      "body_raw_template": "{\"marketplace_id\": \"{{first(3.data).id}}\", \"marketplace_order_id\": \"{{2.head.code}}\", \"order_date\": \"{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}\", \"customer_name\": \"{{2.head.buyer_name}}\", \"customer_email\": \"{{2.head.buyer_email}}\", \"shipping_address\": {{parseJSON(\"{\\\"street\\\":\\\"\" & 2.head.buyer_address1 & \"\\\",\\\"city\\\":\\\"\" & 2.head.buyer_city & \"\\\",\\\"zip\\\":\\\"\" & 2.head.buyer_zip & \"\\\",\\\"country\\\":\\\"\" & 2.head.buyer_country & \"\\\"}\") }}, \"order_value\": {{ifempty(2.head.price; 0)}}, \"shipping_value\": {{ifempty(2.head.shipping_price; 0)}}, \"marketplace_fee\": {{ifempty(2.head.marketplace_fee; 0)}}, \"marketplace_status\": \"{{if(2.head.status = \\\"standby\\\"; \\\"pending\\\"; if(2.head.status = \\\"accepted\\\"; \\\"confirmed\\\"; if(2.head.status = \\\"sent\\\"; \\\"shipped\\\"; if(2.head.status = \\\"cancelled\\\"; \\\"cancelled\\\"; \\\"pending\\\"))))}}\"}",
+      "body_readable": {
         "marketplace_id": "{{first(3.data).id}}",
         "marketplace_order_id": "{{2.head.code}}",
         "order_date": "{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}",
         "customer_name": "{{2.head.buyer_name}}",
         "customer_email": "{{2.head.buyer_email}}",
-        "shipping_address": {
-          "street": "{{2.head.buyer_address1}}",
-          "city": "{{2.head.buyer_city}}",
-          "zip": "{{2.head.buyer_zip}}",
-          "country": "{{2.head.buyer_country}}"
-        },
+        "shipping_address": "{{parseJSON(...)}} — JSONB object via IML, NON oggetto JSON nudo (fix NaN)",
         "order_value": "{{ifempty(2.head.price; 0)}}",
         "shipping_value": "{{ifempty(2.head.shipping_price; 0)}}",
         "marketplace_fee": "{{ifempty(2.head.marketplace_fee; 0)}}",
-        "marketplace_status": "{{if(2.head.status = \"standby\"; \"pending\"; if(2.head.status = \"accepted\"; \"confirmed\"; if(2.head.status = \"shipped\"; \"shipped\"; if(2.head.status = \"delivered\"; \"delivered\"; \"pending\"))))}}"
+        "marketplace_status": "standby→pending | accepted→confirmed | sent→shipped | cancelled→cancelled | default→pending"
       },
       "_mapping_note": {
-        "order_date": "usa date_order (data ordine cliente), fallback create_date, fallback now()",
-        "shipping_value": "shipping_price dal campo head — costo spedizione",
-        "marketplace_status": "mapping standby→pending, accepted→confirmed, shipped→shipped, delivered→delivered",
-        "internal_status": "non incluso nel body — usa default DB 'new'; protetto dalla colonna columns per non sovrascrivere su update",
-        "raw_data": "RIMOSSO: toJSON() non disponibile in Make IML raw body context"
+        "shipping_address": "v1.3: usa {{parseJSON(...)}} per evitare Make NaN warning (il parser legacy interpreta '{' nudo come riferimento a modulo)",
+        "marketplace_status": "v1.3: mapping corretto — sent→shipped (era mancante), cancelled→cancelled. Rimossi shipped/delivered che non esistono in SellRapido.",
+        "internal_status": "non incluso — usa default DB 'new'; protetto da 'columns' su update",
+        "order_date": "fallback chain: date_order → create_date → now()"
       }
     },
     {
