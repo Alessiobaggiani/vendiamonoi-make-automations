@@ -1,0 +1,89 @@
+{
+  "flow": [
+    {
+      "id": 1,
+      "mapper": {
+        "qs": [],
+        "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
+        "data": "{\"startDate\": \"{{formatDate(addDays(now; -45); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"sent\", \"cancelled\"]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendData",
+      "version": 3,
+      "metadata": {
+        "designer": { "x": 0, "y": 0 }
+      },
+      "parameters": {
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 2,
+      "mapper": {
+        "array": "{{1.data.orders}}"
+      },
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      },
+      "parameters": {}
+    },
+    {
+      "id": 3,
+      "mapper": {
+        "qs": [],
+        "url": "/rest/v1/orders?marketplace_order_id=eq.{{2.head.code}}",
+        "body": "{\"marketplace_status\":\"{{2.head.status}}\",\"tracking_number\":\"{{2.head.tracking}}\",\"carrier\":\"{{2.head.courier_code}}\",\"sellrapido_modified_at\":\"{{2.head.modified}}\"}",
+        "method": "PATCH",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "return=minimal" }
+        ]
+      },
+      "module": "supabase:makeAnApiCall",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      },
+      "parameters": {
+        "__IMTCONN__": "[SUPABASE_CONNECTION_ID]"
+      }
+    }
+  ],
+  "name": "SellRapido → Supabase | Aggiornamento Stati Ordini",
+  "metadata": {
+    "zone": "eu2.make.com",
+    "instant": false,
+    "version": 1,
+    "designer": { "orphans": [] },
+    "scenario": {
+      "dlq": false,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  },
+  "scheduling": {
+    "type": "daily",
+    "time": "05:00:00"
+  }
+}

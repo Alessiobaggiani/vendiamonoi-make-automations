@@ -1,33 +1,41 @@
 # Changelog — SellRapido → Supabase | Ordini Marketplace
 
+## v3.2 — 2026-03-16
+**Finestra 3→1 giorno + architettura 2 scenari**
+- Modulo 1: `addDays(now; -3)` → `addDays(now; -1)` — finestra ridotta a 24 ore
+- Riduzione crediti ~92%: da ~9.000 op/giorno a ~300 op/giorno
+- Creato Scenario B separato (ID: 8867890) per aggiornamento stati ordini
+- Scenario B: daily 05:00, finestra 45 giorni, PATCH only su `marketplace_status`, `tracking_number`, `carrier`, `sellrapido_modified_at`
+- Entrambi gli scenari in stato inattivo — attivare dopo test
+
+## v3.1 — 2026-03-15
+**Fix constraint 409 + scenario ricreato come 8856551**
+- Errore `duplicate key value violates unique constraint "uq_order_items_order_sku"` — fix: `ALTER TABLE order_items DROP CONSTRAINT uq_order_items_order_sku`
+- Scenario precedente 8856537 era in stato `isinvalid: true` — eliminato e ricreato da zero come 8856551
+- Architettura attuale: 5 moduli — `HTTP POST SellRapido → BasicFeeder(orders) → UPSERT orders → BasicFeeder(rows) → UPSERT order_items`
+- Upsert via PostgREST HTTP: `on_conflict=marketplace_order_id` per orders, `on_conflict=sellrapido_row_id` per order_items
+- Scenario tenuto inattivo in attesa di test manuale
+
+## v2.5 — 2026-03-13
+**Refactoring completo: da HTTP a moduli nativi Supabase**
+- Rimossi tutti i moduli `http:ActionSendData` per le chiamate Supabase
+- Nuova logica INSERT-ONLY: search → count → insert solo se non esiste
+- Connessione nativa Supabase: `__IMTCONN__: 13881574` ("Vendiamonoi automazioni")
+
 ## v1.8 — 2026-03-12
 **Fix NaN error modulo 4 + Fix lookup marketplace modulo 3**
-
-### Bug fix: NaN error (modulo 4)
-- Root cause: il campo `data` del modulo 4 aveva 8 parentesi di chiusura invece di 7 + un `}}` spurio dopo la chiusura di `marketplace_status`
-- Effetto: Make parser legacy interpretava `}}` dopo il `"` finale come un'espressione IML non chiusa → errore "references non-existing module NaN"
-- Fix: corretto il template IML con esattamente 7 parentesi bilanciate e nessun `}}` dopo la chiusura
-
-### Fix lookup eBay Italy + Metro Germany (modulo 3)
-- Root cause: eBay Italy mandava `marketplace_code='ebay'`, Metro Germany mandava `marketplace_code='metro'` — valori non presenti nella colonna `sellrapido_code`
-- Fix Supabase: aggiunta colonna `sellrapido_marketplace_code` nella tabella `marketplaces` con mapping:
-  - `ebay_it` → `sellrapido_marketplace_code='ebay'`
-  - `metro_de` → `sellrapido_marketplace_code='metro'`
-  - + altri marketplace (leroymerlin, rue_du_commerce, eprice, mediamarkt, carrefour, real_de)
-- Fix modulo 3: OR query su `sellrapido_code` + `sellrapido_marketplace_code`, ordinamento `asc.nullslast` per priorità specifica
-
----
+- Fix campo `data` modulo 4: 7 parentesi bilanciate, nessun `}}` finale
+- Fix modulo 3: aggiunta colonna `sellrapido_marketplace_code` in Supabase
+- OR query `sellrapido_code` + `sellrapido_marketplace_code` con `asc.nullslast`
 
 ## v1.6.1 — 2026-03-12
 **Fix IML sbilanciata (marketplace_status)**
-- `marketplace_status` nel modulo 4 aveva 30 parentesi chiuse vs 28 aperte → `isinvalid: true`
-- Root cause: approccio a 11 `if()` annidati causava Internal Server Error su Make (limite nesting)
-- Fix: sostituito con `or()+lower()` a 6 livelli di `if()` — stessa logica EN+IT, parentesi bilanciate 28=28
-- Scenario riattivato con `scenarios_activate`
+- `marketplace_status` aveva 30 parentesi chiuse vs 28 aperte — scenario `isinvalid: true`
+- Fix: sostituito con 6 livelli `if()` bilanciati
 - Test run SUCCESS: 72 operazioni in 3.2s
 
 ## v1.6 — 2026-03-12
-**Fix import eBay/Metro/ePrice + Mapping status esteso**
+**Fix import eBay/Metro/ePrice**
 - Rimosso filtro status dall'API SellRapido — ora recupera TUTTI gli ordini degli ultimi 30 giorni
 - Mapping status esteso a 11 casi (italiano + inglese)
 - Cleanup: eliminata tabella diagnostica `sellrapido_channel_codes_log`

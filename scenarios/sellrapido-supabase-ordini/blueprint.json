@@ -1,1 +1,122 @@
-{"flow": [{"id": 1, "mapper": {"ca": "", "qs": [], "url": "https://app.sellrapido.com/sr_company_ws/api/order/ae030eaf-e818-4333-96a0-1abbf5d337d4", "data": "{\"startDate\": \"{{formatDate(addDays(now; -30); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\"}", "gzip": true, "method": "post", "headers": [], "timeout": "", "useMtls": false, "authPass": "", "authUser": "", "bodyType": "raw", "contentType": "application/json", "serializeUrl": false, "shareCookies": false, "parseResponse": true, "followRedirect": true, "useQuerystring": false, "followAllRedirects": false, "rejectUnauthorized": true}, "module": "http:ActionSendData", "version": 3, "metadata": {"designer": {"x": 0, "y": 0}}, "parameters": {"handleErrors": false, "useNewZLibDeCompress": true}}, {"id": 2, "mapper": {"array": "{{1.data.orders}}"}, "module": "builtin:BasicFeeder", "version": 1, "metadata": {"designer": {"x": 300, "y": 0}}, "parameters": {}}, {"id": 3, "mapper": {"ca": "", "qs": [{"name": "or", "value": "(sellrapido_code.eq.{{lower(2.head.channel_code)}},sellrapido_marketplace_code.eq.{{lower(2.head.marketplace_code)}})"}, {"name": "select", "value": "id"}, {"name": "order", "value": "sellrapido_marketplace_code.asc.nullslast"}, {"name": "limit", "value": "1"}], "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/marketplaces", "gzip": false, "method": "get", "headers": [{"name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}, {"name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}], "timeout": "", "useMtls": false, "authPass": "", "authUser": "", "bodyType": "raw", "serializeUrl": false, "shareCookies": false, "parseResponse": true, "followRedirect": true, "useQuerystring": false, "followAllRedirects": false, "rejectUnauthorized": true}, "module": "http:ActionSendData", "version": 3, "metadata": {"designer": {"x": 600, "y": 0}}, "parameters": {"handleErrors": false, "useNewZLibDeCompress": true}}, {"id": 4, "filter": {"name": "Marketplace trovato", "conditions": [[{"a": "{{length(3.data)}}", "b": "0", "o": "number:greater"}]]}, "mapper": {"qs": [{"name": "on_conflict", "value": "marketplace_id,marketplace_order_id"}, {"name": "columns", "value": "marketplace_id,marketplace_order_id,order_date,customer_name,customer_email,shipping_address,order_value,shipping_value,marketplace_fee,marketplace_status"}], "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/orders", "data": "{\"marketplace_id\": \"{{first(3.data).id}}\", \"marketplace_order_id\": \"{{2.head.code}}\", \"order_date\": \"{{ifempty(2.head.date_order; ifempty(2.head.create_date; now))}}\", \"customer_name\": \"{{2.head.buyer_name}}\", \"customer_email\": \"{{2.head.buyer_email}}\", \"shipping_address\": {{\"{\\\"street\\\":\\\"\" & 2.head.buyer_address1 & \"\\\",\\\"city\\\":\\\"\" & 2.head.buyer_city & \"\\\",\\\"zip\\\":\\\"\" & 2.head.buyer_zip & \"\\\",\\\"country\\\":\\\"\" & 2.head.buyer_country & \"\\\"}\"}}, \"order_value\": {{ifempty(2.head.price; 0)}}, \"shipping_value\": {{ifempty(2.head.shipping_price; 0)}}, \"marketplace_fee\": {{ifempty(2.head.marketplace_fee; 0)}}, \"marketplace_status\": \"{{if(lower(2.head.status) = \\\"standby\\\"; \\\"pending\\\"; if(or(lower(2.head.status) = \\\"accepted\\\"; lower(2.head.status) = \\\"accettato\\\"); \\\"confirmed\\\"; if(or(lower(2.head.status) = \\\"sent\\\"; lower(2.head.status) = \\\"spedito\\\"); \\\"shipped\\\"; if(or(lower(2.head.status) = \\\"delivered\\\"; lower(2.head.status) = \\\"consegnato\\\"); \\\"delivered\\\"; if(or(lower(2.head.status) = \\\"cancelled\\\"; lower(2.head.status) = \\\"annullato\\\"); \\\"cancelled\\\"; if(or(lower(2.head.status) = \\\"refunded\\\"; lower(2.head.status) = \\\"rimborsato\\\"); \\\"refunded\\\"; \\\"pending\\\")))))))}}\"}", "gzip": false, "method": "post", "headers": [{"name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}, {"name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}, {"name": "Prefer", "value": "resolution=merge-duplicates,return=representation"}, {"name": "Accept", "value": "application/vnd.pgrst.object+json"}], "timeout": "", "useMtls": false, "authPass": "", "authUser": "", "bodyType": "raw", "contentType": "application/json", "serializeUrl": false, "shareCookies": false, "parseResponse": true, "followRedirect": true, "useQuerystring": false, "followAllRedirects": false, "rejectUnauthorized": true}, "module": "http:ActionSendData", "version": 3, "metadata": {"designer": {"x": 900, "y": 0}}, "parameters": {"handleErrors": false, "useNewZLibDeCompress": true}}, {"id": 7, "mapper": {"name": "orderId", "scope": "roundtrip", "value": "{{4.data.id}}"}, "module": "util:SetVariable2", "version": 1, "metadata": {"designer": {"x": 1200, "y": 0}}, "parameters": {}}, {"id": 5, "mapper": {"array": "{{2.rows}}"}, "module": "builtin:BasicFeeder", "version": 1, "metadata": {"designer": {"x": 1500, "y": 0}}, "parameters": {}}, {"id": 6, "mapper": {"qs": [{"name": "on_conflict", "value": "order_id,product_sku"}], "url": "https://smozehzbhoeceioqxodx.supabase.co/rest/v1/order_items", "data": "{\"order_id\": \"{{7.orderId}}\", \"product_sku\": \"{{5.sku}}\", \"product_name\": \"{{5.title}}\", \"product_ean\": \"{{5.ean}}\", \"quantity\": {{ifempty(5.quantity; 1)}}, \"sale_price\": {{ifempty(5.price; 0)}}, \"supplier_cost\": {{ifempty(5.price_cost; 0)}}, \"tracking_number\": \"{{5.tracking}}\"}", "gzip": false, "method": "post", "headers": [{"name": "apikey", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}, {"name": "Authorization", "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3plaHpiaG9lY2Vpb3F4b2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNDM5NDUsImV4cCI6MjA4ODcxOTk0NX0.JHticr7_wzO8fWW3a5B6edH_4-fwq-fpuixQawvx1xc"}, {"name": "Prefer", "value": "resolution=merge-duplicates,return=representation"}], "timeout": "", "useMtls": false, "authPass": "", "authUser": "", "bodyType": "raw", "contentType": "application/json", "serializeUrl": false, "shareCookies": false, "parseResponse": true, "followRedirect": true, "useQuerystring": false, "followAllRedirects": false, "rejectUnauthorized": true}, "module": "http:ActionSendData", "version": 3, "metadata": {"designer": {"x": 1800, "y": 0}}, "parameters": {"handleErrors": false, "useNewZLibDeCompress": true}}], "name": "SellRapido → Supabase | Ordini Marketplace", "metadata": {"instant": false, "version": 1, "designer": {"orphans": []}, "scenario": {"dlq": false, "slots": null, "dataloss": false, "maxErrors": 3, "autoCommit": true, "roundtrips": 1, "sequential": false, "confidential": false, "freshVariables": false, "autoCommitTriggerLast": true}}, "scheduling": {"type": "indefinitely", "interval": 900}, "interface": {"input": [], "output": []}}
+{
+  "flow": [
+    {
+      "id": 1,
+      "mapper": {
+        "qs": [],
+        "url": "https://app.sellrapido.com/sr_company_ws/api/order/[SELLRAPIDO_API_KEY]",
+        "data": "{\"startDate\": \"{{formatDate(addDays(now; -1); \\\"YYYY-MM-DD\\\")}}\", \"format\": \"json\", \"status\": [\"standby\", \"accepted\", \"sent\", \"cancelled\"]}",
+        "gzip": true,
+        "method": "post",
+        "headers": [],
+        "useMtls": false,
+        "bodyType": "raw",
+        "contentType": "application/json",
+        "serializeUrl": false,
+        "shareCookies": false,
+        "parseResponse": true,
+        "followRedirect": true,
+        "useQuerystring": false,
+        "followAllRedirects": false,
+        "rejectUnauthorized": true
+      },
+      "module": "http:ActionSendData",
+      "version": 3,
+      "metadata": {
+        "designer": { "x": 0, "y": 0 }
+      },
+      "parameters": {
+        "handleErrors": false,
+        "useNewZLibDeCompress": true
+      }
+    },
+    {
+      "id": 2,
+      "mapper": {
+        "array": "{{1.data.orders}}"
+      },
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      },
+      "parameters": {}
+    },
+    {
+      "id": 9,
+      "mapper": {
+        "qs": [],
+        "url": "/rest/v1/orders?on_conflict=marketplace_order_id",
+        "body": "{\"marketplace_order_id\":\"{{2.head.code}}\",\"order_date\":\"{{2.head.date_order}}\",\"order_value\":{{ifempty(2.head.price; 0)}},\"shipping_value\":{{ifempty(2.head.shipping_price; 0)}},\"marketplace_status\":\"{{2.head.status}}\",\"marketplace_code\":\"{{2.head.marketplace_code}}\",\"channel_code\":\"{{2.head.channel_code}}\",\"sellrapido_order_id\":{{2.head.id}},\"customer_name\":\"{{2.head.buyer_name}}\",\"customer_email\":\"{{2.head.buyer_email}}\",\"currency\":\"{{2.head.currency}}\",\"marketplace_fee\":{{ifempty(2.head.marketplace_fee; 0)}},\"tracking_number\":\"{{2.head.tracking}}\",\"carrier\":\"{{2.head.courier_code}}\",\"sellrapido_created_at\":\"{{2.head.created}}\",\"sellrapido_modified_at\":\"{{2.head.modified}}\",\"payment_date\":\"{{2.head.date_payment}}\",\"date_shipping\":\"{{2.head.date_shipping}}\"}",
+        "method": "POST",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+        ]
+      },
+      "module": "supabase:makeAnApiCall",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 600, "y": 0 }
+      },
+      "parameters": {
+        "__IMTCONN__": "[SUPABASE_CONNECTION_ID]"
+      }
+    },
+    {
+      "id": 5,
+      "mapper": {
+        "array": "{{2.rows}}"
+      },
+      "module": "builtin:BasicFeeder",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 900, "y": 0 }
+      },
+      "parameters": {}
+    },
+    {
+      "id": 14,
+      "mapper": {
+        "qs": [],
+        "url": "/rest/v1/order_items?on_conflict=sellrapido_row_id",
+        "body": "{\"order_id\":\"{{9.body[1].id}}\",\"sellrapido_row_id\":{{5.id}},\"product_sku\":\"{{5.sku}}\",\"product_name\":\"{{5.title}}\",\"product_ean\":\"{{5.ean}}\",\"quantity\":{{ifempty(5.quantity; 1)}},\"sale_price\":{{ifempty(5.price; 0)}},\"supplier_cost\":{{ifempty(5.price_cost; 0)}},\"price_total\":{{ifempty(5.price_total; 0)}},\"tracking_number\":\"{{5.tracking}}\",\"brand\":\"{{5.brand}}\",\"mpn\":\"{{5.mpn}}\",\"product_marketplace_id\":\"{{5.product_id}}\",\"shipping_cost\":{{ifempty(5.shipping_cost; 0)}},\"courier_code\":\"{{5.courier_code}}\",\"sellrapido_created_at\":\"{{5.created}}\",\"sellrapido_modified_at\":\"{{5.modified}}\"}",
+        "method": "POST",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+        ]
+      },
+      "module": "supabase:makeAnApiCall",
+      "version": 1,
+      "metadata": {
+        "designer": { "x": 1200, "y": 0 }
+      },
+      "parameters": {
+        "__IMTCONN__": "[SUPABASE_CONNECTION_ID]"
+      }
+    }
+  ],
+  "name": "SellRapido → Supabase | Ordini Marketplace",
+  "metadata": {
+    "zone": "eu2.make.com",
+    "instant": false,
+    "version": 1,
+    "designer": { "orphans": [] },
+    "scenario": {
+      "dlq": false,
+      "dataloss": false,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "roundtrips": 1,
+      "sequential": false,
+      "confidential": false,
+      "freshVariables": false,
+      "autoCommitTriggerLast": true
+    }
+  },
+  "scheduling": {
+    "type": "indefinitely",
+    "interval": 900
+  }
+}
